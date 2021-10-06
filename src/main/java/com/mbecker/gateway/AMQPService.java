@@ -17,17 +17,15 @@ public class AMQPService implements GatewayService {
 
     private static final Logger LOG = Logger.getLogger(AMQPService.class);
 
-    private Utils utils;
     private Channel channel;
+    private Gson gson = new Gson();
 
     public AMQPService(Utils utils) {
 
         LOG.debug("Initializing AMQPService");
-        
-        this.utils = utils;
 
         ConnectionFactory factory = new ConnectionFactory();
-        
+
         factory.setHost(utils.getAMQPHost());
         factory.setPort(utils.getAMQPPort());
         factory.setUsername(utils.getAMQPUsername());
@@ -47,16 +45,32 @@ public class AMQPService implements GatewayService {
     }
 
     @Override
-    public void send(Notification notification) {
+    public void send(Notification notification, String routingKey) {
         System.out.println("Send ...");
         try {
             Gson gson = new GsonBuilder().setDateFormat("yyyy-MM-dd'T'hh:mm:ss.S").create();
             String json = gson.toJson(notification);
-            this.channel.basicPublish("", this.utils.getAMQPQueue(), null, json.getBytes(StandardCharsets.UTF_8));
+            this.channel.basicPublish("", routingKey, null, json.getBytes(StandardCharsets.UTF_8));
             System.out.println("[x] Sent '" + json + "'");
         } catch (IOException e) {
             LOG.error("Publish message", e);
         }
-
     }
+
+    @Override
+    public void send(String notification, String routingKey) {
+        try {
+            this.channel.basicPublish("", routingKey, null, notification.getBytes(StandardCharsets.UTF_8));
+        } catch (IOException e) {
+            LOG.error(e);
+        }
+    }
+
+    public void send(Object obj, String routingKey) {
+        String json = this.gson.toJson(obj);
+        this.send(json, routingKey);
+    }
+    
+
+    
 }

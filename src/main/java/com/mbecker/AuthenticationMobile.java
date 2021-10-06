@@ -103,7 +103,7 @@ public class AuthenticationMobile implements Authenticator {
         Notification notification = new Notification(Notification.Action.AUTHENTICATION, Notification.Type.SMS,
                 mobileNumber, smsText, mobileCode, this.utils.getNotificationTTL(), createdAt, uuid, realm);
 
-        GatewayServiceFactory.get(this.utils).send(notification);
+        GatewayServiceFactory.get(this.utils).send(notification, this.utils.getAMQPQueue());
 
         context.challenge(
                 context.form().setAttribute("realm", context.getRealm()).createForm(Utils.TEMPLATE_NAME_AUTH));

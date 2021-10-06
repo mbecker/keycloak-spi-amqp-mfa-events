@@ -216,7 +216,7 @@ public class RequiredActionMobile implements RequiredActionProvider {
                     mobileNumber, smsText, mobileCode, Utils.TTL, createdAt, uuid, realm);
 
             LOG.debug("Process Action: --> Sent notification: " + notification);
-            GatewayServiceFactory.get(this.utils).send(notification);
+            GatewayServiceFactory.get(this.utils).send(notification, this.utils.getAMQPQueue());
 
             this.requiredActionChallenge(context);
             return;
