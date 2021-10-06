@@ -11,6 +11,9 @@ import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.sessions.AuthenticationSessionModel;
 import org.keycloak.theme.Theme;
+
+import jdk.internal.org.jline.utils.Log;
+
 import org.keycloak.common.util.Time;
 
 import javax.ws.rs.core.MultivaluedMap;
@@ -41,14 +44,17 @@ public class AuthenticationMobile implements Authenticator {
     @Override
     public void authenticate(AuthenticationFlowContext context) {
 
-        LOG.debug("authenticate");
+        LOG.infof("authenticate");
 
         KeycloakSession session = context.getSession();
         UserModel user = context.getUser();
         String mobileXVerified = user.getFirstAttribute(Utils.ATTR_X_VERIFIED);
         Boolean isMobileXVerified = Boolean.parseBoolean(mobileXVerified);
 
-        LOG.debug("User existing attributes: " + user.getAttributes());
+        int pageRefresh = context.getSession().getAttributeOrDefault(Utils.SESSION_AUTH_NOTE_REFRESH, 0);
+        LOG.infof("Page refresh: " + pageRefresh);
+        
+        LOG.infof("User existing attributes: " + user.getAttributes());
 
         // (1) Mobile nuber attributes: The mobile number is not yet verified (maybe
         // does net yet exists)
@@ -68,11 +74,21 @@ public class AuthenticationMobile implements Authenticator {
         // --> Add required action to add mobile number and to verify mobile number
         // --> Reset user's attribute
         // --> Succeed the context that the next required action can be shown
+        // TODO: Really necessay to valiet mobile users again? Should already be verified in the registration/required context
         if (this.utils.mobileNumberIsValid(mobileNumber) == false) {
             LOG.debug("Mobile number is not valid");
             user.addRequiredAction(RequiredActionMobile.PROVIDER_ID);
             this.utils.resetUser(user);
             context.success();
+            return;
+        }
+
+        if(this.utils.getNotificationShouldSendOnStartp() == false && pageRefresh == 0){
+            LOG.debug("Send not the notification startup; await manually retrigger");
+            Response challenge = context.form()
+                    .addError(new FormMessage(Utils.TEMPLATE_AUTH_PAGE_REFRESH, Utils.TEMPLATE_AUTH_PAGE_REFRESH))
+                    .createForm(Utils.TEMPLATE_NAME_AUTH);
+            context.challenge(challenge);
             return;
         }
 
@@ -123,6 +139,7 @@ public class AuthenticationMobile implements Authenticator {
         // --> Restart flow
         String tryAgain = formData.getFirst("reset");
         if (tryAgain != null && tryAgain.length() > 0) {
+            context.getSession().setAttribute(Utils.SESSION_AUTH_NOTE_REFRESH, 1);
             context.getUser().removeAttribute(Utils.ATTR_X_CODE);
             context.getUser().removeAttribute(Utils.ATTR_X_CODE_TIMESTAMP);
             this.authenticate(context);

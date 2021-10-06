@@ -19,17 +19,26 @@
 					</div>
 				</div>
 
-				<div id="kc-form-buttons" class="${properties.kcFormButtonsClass!}">
-					<input class="${properties.kcButtonClass!} ${properties.kcButtonPrimaryClass!} ${properties.kcButtonBlockClass!} ${properties.kcButtonLargeClass!}" type="submit" value="${msg("doSubmit")}"/>
-				</div>
+				<#-- The user should manually trigger the sending of the verification code -->
+				<#if messagesPerField.existsError('mobileAuthPageRefresh')>
+					<div id="kc-form-buttons" class="${properties.kcFormButtonsClass!}">
+						<input class="${properties.kcButtonClass!} ${properties.kcButtonPrimaryClass!} ${properties.kcButtonBlockClass!} ${properties.kcButtonLargeClass!}" type="submit" name="reset" value="${msg("authenticatorCode")}"/>
+					</div>
+				<#else>
+					<#--The user should got a verification code; either he manually triggered it or the code was sent on startup -->
+					<div id="kc-form-buttons" class="${properties.kcFormButtonsClass!}">
+						<input class="${properties.kcButtonClass!} ${properties.kcButtonPrimaryClass!} ${properties.kcButtonBlockClass!} ${properties.kcButtonLargeClass!}" type="submit" value="${msg("doSubmit")}"/>
+					</div>
 
-				<div id="kc-form-buttons" class="${properties.kcFormButtonsClass!}">
-					<input class="${properties.kcButtonClass!} ${properties.kcButtonPrimaryClass!} ${properties.kcButtonBlockClass!} ${properties.kcButtonLargeClass!}" type="submit" name="reset" value="${msg("doTryAgain")}"/>
-				</div>
+					<div id="kc-form-buttons" class="${properties.kcFormButtonsClass!}">
+						<input class="${properties.kcButtonClass!} ${properties.kcButtonPrimaryClass!} ${properties.kcButtonBlockClass!} ${properties.kcButtonLargeClass!}" type="submit" name="reset" value="${msg("doTryAgain")}"/>
+					</div>
+				</#if>
 
 				<div id="kc-form-buttons" class="${properties.kcFormButtonsClass!}">
 					<input class="${properties.kcButtonClass!} ${properties.kcButtonPrimaryClass!} ${properties.kcButtonBlockClass!} ${properties.kcButtonLargeClass!}" type="submit" name="skip" value="${msg("doIgnore")}"/>
 				</div>
+				
 			</div>
 		</form>
 	<#elseif section = "info" >
