@@ -1,0 +1,18 @@
+# Thanks to https://github.com/SnuK87/keycloak-kafka/blob/master/add-kafka-config.cli
+# Keycloak log: {"outcome" => "success"}
+embed-server --server-config=standalone.xml --std-out=echo
+
+if (outcome != success) of /subsystem=keycloak-server/spi=eventsListener:read-resource()
+    /subsystem=keycloak-server/spi=eventsListener:add()
+    /subsystem=keycloak-server/spi=eventsListener/provider=MB_AMQP_EVENTLISTENER:add(enabled=true)
+    /subsystem=keycloak-server/spi=eventsListener/provider=MB_AMQP_EVENTLISTENER:write-attribute(name=properties.CONFIG_IS_SIMULATION,value=${env.AMQPMFAEVENTS_CONFIG_IS_SIMULATION})
+    /subsystem=keycloak-server/spi=eventsListener/provider=MB_AMQP_EVENTLISTENER:write-attribute(name=properties.CONFIG_AMQP_HOST,value=${env.AMQPMFAEVENTS_CONFIG_AMQP_HOST})
+    /subsystem=keycloak-server/spi=eventsListener/provider=MB_AMQP_EVENTLISTENER:write-attribute(name=properties.CONFIG_AMQP_QUEUE,value=${env.AMQPMFAEVENTS_CONFIG_AMQP_QUEUE})
+    /subsystem=keycloak-server/spi=eventsListener/provider=MB_AMQP_EVENTLISTENER:write-attribute(name=properties.CONFIG_AMQP_USERNAME,value=${env.AMQPMFAEVENTS_CONFIG_AMQP_USERNAME})
+    /subsystem=keycloak-server/spi=eventsListener/provider=MB_AMQP_EVENTLISTENER:write-attribute(name=properties.CONFIG_AMQP_PASSWORD,value=${env.AMQPMFAEVENTS_CONFIG_AMQP_PASSWORD})
+    /subsystem=keycloak-server/spi=eventsListener/provider=MB_AMQP_EVENTLISTENER:write-attribute(name=properties.CONFIG_AMQP_USERNAME,value=${env.AMQPMFAEVENTS_CONFIG_AMQP_USERNAME})
+    /subsystem=keycloak-server/spi=eventsListener/provider=MB_AMQP_EVENTLISTENER:write-attribute(name=properties.CONFIG_SHOULD_SKIP,value=${env.AMQPMFAEVENTS_CONFIG_SHOULD_SKIP})
+    /subsystem=keycloak-server/spi=eventsListener/provider=MB_AMQP_EVENTLISTENER:write-attribute(name=properties.CONFIG_AMQP_QUEUE_EVENTS,value=${env.AMQPMFAEVENTS_CONFIG_AMQP_QUEUE_EVENTS})
+    /subsystem=keycloak-server/spi=eventsListener/provider=MB_AMQP_EVENTLISTENER:write-attribute(name=properties.CONFIG_AMQP_QUEUE_EVENTS_ADMIN,value=${env.AMQPMFAEVENTS_CONFIG_AMQP_QUEUE_EVENTS_ADMIN})
+end-if
+stop-embedded-server
