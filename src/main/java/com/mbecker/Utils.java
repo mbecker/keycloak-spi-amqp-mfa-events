@@ -19,7 +19,7 @@ public class Utils {
     /**
      * CONFIG
      */
-    public static final String CONFIG_SYS_ENV_PREFIX = "MB_AUTH_"; // Global prefix for SYSTEM environemt variables like "MB_AUTH_CONFIG_AMQP_HOST";
+    public static final String CONFIG_SYS_ENV_PREFIX = "AMQPMFAEVENTS_"; // Global prefix for SYSTEM environemt variables like "MB_AUTH_CONFIG_AMQP_HOST";
     
     public static final String CONFIG_IS_SIMULATION = "CONFIG_IS_SIMULATION";
     public Boolean getIsSimulation(){
