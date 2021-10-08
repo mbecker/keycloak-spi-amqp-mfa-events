@@ -1,0 +1,38 @@
+<?xml version="1.1" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:ext="http://www.liquibase.org/xml/ns/dbchangelog-ext"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog-ext
+    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-ext.xsd
+    http://www.liquibase.org/xml/ns/dbchangelog
+    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.5.xsd">
+    <changeSet author="mats.becker@gmail.com" id="1">
+
+        <createTable tableName="mfa_mobiletokenverfication">
+            <column name="CODE" type="VARCHAR(36)">
+                <constraints nullable="false" primaryKey="true"/>
+            </column>
+
+            <column name="VALIDATED" type="BOOLEAN">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="UUID" type="CHAR(36)">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="TTL" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            
+            <column name="CREATEDAT" type="INT">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="REALM_ID" type="VARCHAR(36)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+    </changeSet>
+
+</databaseChangeLog>
