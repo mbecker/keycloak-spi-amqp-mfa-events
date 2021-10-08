@@ -10,14 +10,9 @@ public class MFAResourceProviderFactory implements RealmResourceProviderFactory 
 
     public final static String PROVIDER_ID = "mfa-provider";
 
-    private MFAResourceProvider mfaResourceProvider;
-
     @Override
     public RealmResourceProvider create(KeycloakSession session) {
-        if (mfaResourceProvider == null) {
-            mfaResourceProvider = new MFAResourceProvider(session);
-        }
-        return mfaResourceProvider;
+        return new MFAResourceProvider(session);
     }
 
     @Override
