@@ -191,8 +191,7 @@ public class RequiredActionMobile implements RequiredActionProvider {
 
             LOG.info("Process Action: --> Sent notification: " + notification);
             try {
-                GatewayServiceFactory.get(this.utils, context.getSession(), notification).send(notification,
-                        this.utils.getAMQPQueue());
+                GatewayServiceFactory.get(this.utils).send(notification, this.utils.getAMQPQueue());
             } catch (Exception ex) {
                 LOG.error(ex);
                 Response challenge = context.form()

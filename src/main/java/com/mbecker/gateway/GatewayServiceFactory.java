@@ -7,7 +7,7 @@ import org.keycloak.models.KeycloakSession;
 public class GatewayServiceFactory {
 
     // AMQP
-    public static GatewayService get(Utils utils, String clientId) {
+    public static GatewayService get(Utils utils) {
         if (utils.getIsSimulation()) {
             return new SimulationService();
         }
