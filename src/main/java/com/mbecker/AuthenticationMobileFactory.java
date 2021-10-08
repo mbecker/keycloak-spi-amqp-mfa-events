@@ -68,7 +68,7 @@ public class AuthenticationMobileFactory implements AuthenticatorFactory {
 
 	@Override
 	public Authenticator create(KeycloakSession session) {
-		LOG.debug("Create");
+		LOG.info("Create");
 		if (instance == null) {
 			return new AuthenticationMobile(this.utils);
 		}
@@ -77,7 +77,7 @@ public class AuthenticationMobileFactory implements AuthenticatorFactory {
 
 	@Override
 	public void init(Config.Scope config) {
-		LOG.debug("Initializing");
+		LOG.info("Initializing");
 		this.utils = new Utils(config);
 	}
 

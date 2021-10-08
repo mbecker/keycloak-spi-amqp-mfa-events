@@ -1,8 +1,6 @@
 package com.mbecker;
 
-import java.io.IOException;
 import java.util.Collections;
-import java.util.Locale;
 
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
@@ -13,12 +11,9 @@ import com.mbecker.gateway.Notification;
 import org.jboss.logging.Logger;
 import org.keycloak.authentication.RequiredActionContext;
 import org.keycloak.authentication.RequiredActionProvider;
-import org.keycloak.common.util.RandomString;
 import org.keycloak.common.util.Time;
-import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.UserModel;
 import org.keycloak.models.utils.FormMessage;
-import org.keycloak.theme.Theme;
 
 /**
  * @author Mats Becker, mats.becker@gmail.com
@@ -34,10 +29,10 @@ public class RequiredActionMobile implements RequiredActionProvider {
     public RequiredActionMobile(Utils utils) {
         this.utils = utils;
     }
-    
+
     @Override
     public void close() {
-        LOG.debug("Close");
+        LOG.info("Close");
     }
 
     @Override
@@ -47,25 +42,25 @@ public class RequiredActionMobile implements RequiredActionProvider {
         // If yes then remove the required action (just in case)
         // If no then reset the user and add the required action to add a new mobile
         // number
-        LOG.debug("evaluateTriggers");
+        LOG.info("evaluateTriggers");
         UserModel user = context.getUser();
         String mobileXVerified = user.getFirstAttribute(Utils.ATTR_X_VERIFIED);
         Boolean isMobileXVerified = Boolean.parseBoolean(mobileXVerified);
 
-        if (isMobileXVerified) {
+        if (!isMobileXVerified) {
+            LOG.info("User's mobile number is not yet verified; start verification process");
+            this.utils.resetUser(user);
+            user.addRequiredAction(RequiredActionMobile.PROVIDER_ID);
+        } else {
+            LOG.info("User's mobile number is verified; remove verification process");
             user.removeRequiredAction(RequiredActionMobile.PROVIDER_ID);
-            return;
         }
-
-        this.utils.resetUser(user);
-        user.addRequiredAction(RequiredActionMobile.PROVIDER_ID);
-        return;
     }
 
     @Override
     public void requiredActionChallenge(RequiredActionContext context) {
 
-        LOG.debug("requiredActionChallenge");
+        LOG.info("requiredActionChallenge");
 
         UserModel user = context.getUser();
         String mobileXVerified = user.getFirstAttribute(Utils.ATTR_X_VERIFIED);
@@ -76,13 +71,13 @@ public class RequiredActionMobile implements RequiredActionProvider {
             return;
         }
 
-        if(Boolean.parseBoolean(context.getAuthenticationSession().getAuthNote(Utils.AUTH_NOTE_SKIP)) == true) {
-            LOG.debug("Skip challenge because the user clicked in the form to skip");
+        if (Boolean.parseBoolean(context.getAuthenticationSession().getAuthNote(Utils.AUTH_NOTE_SKIP)) == true) {
+            LOG.info("Skip challenge because the user clicked in the form to skip");
             context.success();
             return;
         }
 
-        LOG.debug("User existing attributes: " + user.getAttributes());
+        LOG.info("User existing attributes: " + user.getAttributes());
 
         // (1) Mobile nuber attributes: The mobile number is not yet verified (maybe
         // does net yet exists)
@@ -131,7 +126,7 @@ public class RequiredActionMobile implements RequiredActionProvider {
     @Override
     public void processAction(RequiredActionContext context) {
 
-        LOG.debug("processAction");
+        LOG.info("processAction");
 
         UserModel user = context.getUser();
         String mobileXVerified = user.getFirstAttribute(Utils.ATTR_X_VERIFIED);
@@ -144,13 +139,13 @@ public class RequiredActionMobile implements RequiredActionProvider {
 
         // FormData from html from template page ("action-mobile")
         MultivaluedMap<String, String> formData = context.getHttpRequest().getDecodedFormParameters();
-        LOG.debug("FormData form html form: " + formData);
+        LOG.info("FormData form html form: " + formData);
 
         // The user clicked "reset=[Try again]"; reset all attributes and start process
         // again
         String tryAgain = formData.getFirst("reset");
         if (tryAgain != null && tryAgain.length() > 0) {
-            LOG.debug("Form clicked: reset=[Try again]");
+            LOG.info("Form clicked: reset=[Try again]");
             this.utils.resetUser(user);
             this.requiredActionChallenge(context);
             return;
@@ -159,10 +154,9 @@ public class RequiredActionMobile implements RequiredActionProvider {
         // The user clicked "skip=[XXXX]"; skip the required action and continue with
         // the flow
         String skipForm = formData.getFirst("skip");
-        if (this.utils.getNotificationShouldSkip() && skipForm != null
-                && skipForm.length() > 0) {
-                    LOG.debug("Form clicked: skip=[Continue]");
-                    context.getAuthenticationSession().setAuthNote(Utils.AUTH_NOTE_SKIP, "true");
+        if (this.utils.getNotificationShouldSkip() && skipForm != null && skipForm.length() > 0) {
+            LOG.info("Form clicked: skip=[Continue]");
+            context.getAuthenticationSession().setAuthNote(Utils.AUTH_NOTE_SKIP, "true");
             context.success();
             return;
         }
@@ -175,7 +169,7 @@ public class RequiredActionMobile implements RequiredActionProvider {
             // --> Reset user
             // --> Respond with a response restart
             if (this.utils.mobileNumberIsValid(mobileNumber) == false) {
-                LOG.debug("Mobile number verification - Mobile Number is invalid; reset user; show error: "
+                LOG.info("Mobile number verification - Mobile Number is invalid; reset user; show error: "
                         + mobileNumber);
                 this.utils.resetUser(user);
                 Response challenge = context.form()
@@ -187,36 +181,26 @@ public class RequiredActionMobile implements RequiredActionProvider {
             }
 
             // (1).(2).(0) Generate random string code
-            Integer createdAt = Time.currentTime();
-            String uuid = context.getUser().getId();
-            String realm = context.getRealm().getId();
-            KeycloakSession session = context.getSession();
-            Theme theme;
-            String smsText = "";
+            Notification notification = new Notification(context.getSession(), user, context.getRealm(), this.utils,
+                    Notification.Action.REQUIREDACTION, Notification.Type.AMQP, mobileNumber);
 
-            // (1).(2).(1) Generate random string code
-            String mobileCode = RandomString.randomCode(Utils.CODE_LENGTH);
-
-            try {
-                theme = session.theme().getTheme(Theme.Type.LOGIN);
-                Locale locale = session.getContext().resolveLocale(context.getUser());
-                String smsAuthText = theme.getMessages(locale).getProperty(Utils.TEMPLATE_ACTION_SEND_TEXT);
-                smsText = String.format(smsAuthText, mobileCode, Math.floorDiv(Utils.TTL, 60));
-            } catch (IOException e) {
-                LOG.debug(e.toString());
-                e.printStackTrace();
-            }
-
-            LOG.debug("Process Action: --> Save mobile number " + mobileNumber);
+            LOG.info("Process Action: --> Save mobile number " + mobileNumber);
             user.setSingleAttribute(Utils.ATTR_X_NUMBER, mobileNumber);
-            user.setSingleAttribute(Utils.ATTR_X_CODE, mobileCode);
-            user.setSingleAttribute(Utils.ATTR_X_CODE_TIMESTAMP, Integer.toString(createdAt));
+            user.setSingleAttribute(Utils.ATTR_X_CODE, notification.getCode());
+            user.setSingleAttribute(Utils.ATTR_X_CODE_TIMESTAMP, Integer.toString(notification.getCreatedAt()));
 
-            Notification notification = new Notification(Notification.Action.REQUIREDACTION, Notification.Type.SMS,
-                    mobileNumber, smsText, mobileCode, Utils.TTL, createdAt, uuid, realm);
-
-            LOG.debug("Process Action: --> Sent notification: " + notification);
-            GatewayServiceFactory.get(this.utils).send(notification, this.utils.getAMQPQueue());
+            LOG.info("Process Action: --> Sent notification: " + notification);
+            try {
+                GatewayServiceFactory.get(this.utils, context.getSession(), notification).send(notification,
+                        this.utils.getAMQPQueue());
+            } catch (Exception ex) {
+                LOG.error(ex);
+                Response challenge = context.form()
+                        .addError(new FormMessage(Utils.TEMPLATE_AUTH_ERROR_SENT, Utils.TEMPLATE_AUTH_ERROR_SENT))
+                        .createForm(Utils.TEMPLATE_NAME_ACTIONREQUIRED);
+                context.challenge(challenge);
+                return;
+            }
 
             this.requiredActionChallenge(context);
             return;
@@ -272,7 +256,7 @@ public class RequiredActionMobile implements RequiredActionProvider {
 
     public boolean isVerifyTTLOk(RequiredActionContext context) {
 
-        LOG.debug("isVerifyTTLOk");
+        LOG.info("isVerifyTTLOk");
 
         String mobileTimestamp = context.getUser().getFirstAttribute(Utils.ATTR_X_CODE_TIMESTAMP);
         try {
@@ -288,7 +272,7 @@ public class RequiredActionMobile implements RequiredActionProvider {
             }
 
         } catch (NumberFormatException e) {
-            LOG.debug("Error parsing timetsmap ttl: " + e);
+            LOG.info("Error parsing timetsmap ttl: " + e);
             Response challenge = context.form()
                     .addError(new FormMessage(Utils.TEMPLATE_ACTION_ERROR_TTL, Utils.TEMPLATE_ACTION_ERROR_TTL))
                     .createForm(Utils.TEMPLATE_NAME_ACTIONREQUIRED);

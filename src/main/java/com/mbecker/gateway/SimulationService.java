@@ -1,7 +1,11 @@
 package com.mbecker.gateway;
 
+import java.util.Map;
+
 import com.google.gson.Gson;
 import org.jboss.logging.Logger;
+import org.keycloak.email.EmailException;
+import org.keycloak.models.UserModel;
 
 public class SimulationService implements GatewayService {
 
@@ -9,7 +13,7 @@ public class SimulationService implements GatewayService {
     private Gson gson = new Gson();
 
     public SimulationService() {
-        LOG.debug("Initializing SimulationService");
+        LOG.info("Initializing SimulationService");
     }
 
     @Override
@@ -28,6 +32,13 @@ public class SimulationService implements GatewayService {
     public void send(Object obj, String routingKey) {
         String json = this.gson.toJson(obj);
         this.send(json, routingKey);
+    }
+
+    @Override
+    public void sendMail(Map<String, String> config, UserModel user, EmailTemplate emailTemplate)
+            throws EmailException {
+        LOG.infof("Sending mail:\nSubject: %s\nBody Text: %s\nHTML Body: %s", emailTemplate.getSubject(),
+                emailTemplate.getTextBody(), emailTemplate.getHtmlBody());
     }
 
 }

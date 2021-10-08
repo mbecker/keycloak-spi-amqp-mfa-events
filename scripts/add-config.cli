@@ -1,11 +1,16 @@
 # Thanks to https://github.com/SnuK87/keycloak-kafka/blob/master/add-kafka-config.cli
+# Logging thanks to: https://www.n-k.de/2020/12/keycloak-events-logging.html
 # Keycloak log: {"outcome" => "success"}
 embed-server --server-config=standalone.xml --std-out=echo
 
 if (outcome != success) of /subsystem=keycloak-server/spi=eventsListener:read-resource()
     /subsystem=keycloak-server/spi=eventsListener:add()
+    /subsystem=keycloak-server/spi=eventsListener/provider=jboss-logging:add(enabled=true)
+    /subsystem=keycloak-server/spi=eventsListener/provider=jboss-logging:write-attribute(name=properties.success-level,value=info)
+    /subsystem=keycloak-server/spi=eventsListener/provider=jboss-logging:write-attribute(name=properties.error-level,value=warn)
     /subsystem=keycloak-server/spi=eventsListener/provider=MB_AMQP_EVENTLISTENER:add(enabled=true)
     /subsystem=keycloak-server/spi=eventsListener/provider=MB_AMQP_EVENTLISTENER:write-attribute(name=properties.CONFIG_IS_SIMULATION,value=${env.AMQPMFAEVENTS_CONFIG_IS_SIMULATION})
+    /subsystem=keycloak-server/spi=eventsListener/provider=MB_AMQP_EVENTLISTENER:write-attribute(name=properties.CONFIG_NOTIFICATION_SHOULD_SEND_ON_STARTUP,value=${env.AMQPMFAEVENTS_CONFIG_NOTIFICATION_SHOULD_SEND_ON_STARTUP})
     /subsystem=keycloak-server/spi=eventsListener/provider=MB_AMQP_EVENTLISTENER:write-attribute(name=properties.CONFIG_AMQP_HOST,value=${env.AMQPMFAEVENTS_CONFIG_AMQP_HOST})
     /subsystem=keycloak-server/spi=eventsListener/provider=MB_AMQP_EVENTLISTENER:write-attribute(name=properties.CONFIG_AMQP_QUEUE,value=${env.AMQPMFAEVENTS_CONFIG_AMQP_QUEUE})
     /subsystem=keycloak-server/spi=eventsListener/provider=MB_AMQP_EVENTLISTENER:write-attribute(name=properties.CONFIG_AMQP_USERNAME,value=${env.AMQPMFAEVENTS_CONFIG_AMQP_USERNAME})

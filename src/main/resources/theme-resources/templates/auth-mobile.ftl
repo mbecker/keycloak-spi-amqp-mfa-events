@@ -17,6 +17,18 @@
 					<div class="${properties.kcFormOptionsWrapperClass!}">
 						<span><a href="${url.loginRestartFlowUrl}">${kcSanitize(msg("backToLogin"))?no_esc}</a></span>
 					</div>
+					<#-- The scope/env config includes multipls notification channels like AMQP, EMAIl; show the button that the the user can trigger it's favourite notification channel -->
+					<#if mobileAuthChannels?? && (mobileAuthChannels?size gt 1) >
+						<div class="${properties.kcFormOptionsWrapperClass!}" style="margin-top: 1em;display: flex;flex-direction: column;">
+							<span class="${properties.kcLabelClass!}" style="font-weight: 600;">${msg("mobileAuthSelectChannelFor")}${mobileAuthChannelSelected}</span>
+							<span class="${properties.kcLabelClass!}" style="font-weight: 600;">${msg("mobileAuthSelectChannelSwitchTo")}</span>
+							<#list mobileAuthChannels as channel>
+									<#if channel != mobileAuthChannelSelected>
+										<input class="${properties.kcButtonClass!} ${properties.kcButtonPrimaryClass!} ${properties.kcButtonBlockClass!} ${properties.kcButtonLargeClass!}" type="submit" name="notification" value="${channel}" />
+									</#if>
+								</#list>
+						</div>
+					</#if>
 				</div>
 
 				<#-- The user should manually trigger the sending of the verification code -->

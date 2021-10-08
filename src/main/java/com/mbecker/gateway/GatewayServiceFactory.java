@@ -2,14 +2,24 @@ package com.mbecker.gateway;
 
 import com.mbecker.Utils;
 
+import org.keycloak.models.KeycloakSession;
+
 public class GatewayServiceFactory {
 
-    public static GatewayService get(Utils utils) {
+    // AMQP
+    public static GatewayService get(Utils utils, String clientId) {
         if (utils.getIsSimulation()) {
             return new SimulationService();
-        } else {
-            return new AMQPService(utils);
         }
+        return new AMQPService(utils);
+    }
+
+    // Email
+    public static GatewayService get(Utils utils, KeycloakSession session, Notification notification) {
+        if (utils.getIsSimulation()) {
+            return new SimulationService();
+        }
+        return new EmailService(session);
     }
 
 }

@@ -5,6 +5,8 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import com.mbecker.gateway.Notification;
+
 import org.jboss.logging.Logger;
 import org.keycloak.Config;
 import org.keycloak.models.UserModel;
@@ -16,6 +18,9 @@ public class Utils {
 
     private static final Logger LOG = Logger.getLogger(Utils.class);
 
+    // public static final String CONST_NOTIFICATION_CHANNEL_AMQP = "AMQP";
+    // public static final String CONST_NOTIFICATION_CHANNEL_EMAIL = "EMAIL";
+
     /**
      * CONFIG
      */
@@ -25,9 +30,29 @@ public class Utils {
     public static final String CONFIG_IS_SIMULATION = "CONFIG_IS_SIMULATION";
 
     public Boolean getIsSimulation() {
-        return Boolean.parseBoolean(this.config.get(CONFIG_DEFAULT_IS_SIMULATION));
+        return Boolean.parseBoolean(this.config.get(CONFIG_IS_SIMULATION));
     }
 
+    public static final String CONFIG_NOTIFICATION_CHANNELS = "CONFIG_NOTIFICATION_CHANNELS";
+
+    public String[] getNotificationChannels() {
+        String[] sschannels = this.config.get(CONFIG_NOTIFICATION_CHANNELS).split(",");
+        return sschannels;
+    }
+
+    public static final String CONFIG_AMQP_CLIENTID_EVENTS = "CONFIG_AMQP_CLIENTID_EVENTS";
+    public static final String CONFIG_AMQP_CLIENTID_AUTHENTICATION = "CONFIG_AMQP_CLIENTID_AUTHENTICATION";
+    public static final String CONFIG_AMQP_CLIENTID_REQUIREDACTION = "CONFIG_AMQP_CLIENTID_REQUIREDACTION";
+    public String getAMQPClientEvents() {
+        return this.config.get(CONFIG_AMQP_CLIENTID_EVENTS);
+    }
+    public String getAMQPClientAuth() {
+        return this.config.get(CONFIG_AMQP_CLIENTID_AUTHENTICATION);
+    }
+    public String getAMQPClientRequiredAction() {
+        return this.config.get(CONFIG_AMQP_CLIENTID_REQUIREDACTION);
+    }
+    
     public static final String CONFIG_AMQP_HOST = "CONFIG_AMQP_HOST";
 
     public String getAMQPHost() {
@@ -102,6 +127,9 @@ public class Utils {
 
     public static final String CONFIG_DEFAULT_IS_SIMULATION = "false";
     public static final String CONFIG_DEFAULT_NOTIFICATION_SHOULD_SEND_ON_STARTUP = "false";
+    public static final String CONFIG_DEFAULT_AMQP_CLIENTID_EVENTS = "mb_amqp_keycloak-events";
+    public static final String CONFIG_DEFAULT_AMQP_CLIENTID_AUTHENTICATION = "mb_amqp_keycloak-auth";
+    public static final String CONFIG_DEFAULT_AMQP_CLIENTID_REQUIREDACTION = "mb_amqp_keycloak-action";
     public static final String CONFIG_DEFAULT_AMQP_HOST = "localhost";
     public static final String CONFIG_DEFAULT_AMQP_PORT = "5672";
     public static final String CONFIG_DEFAULT_AMQP_QUEUE = "mbnotification";
@@ -118,7 +146,8 @@ public class Utils {
 
     public static final Integer TTL = 60 * 5;
     public static final Integer CODE_LENGTH = 6;
-    public static final String SESSION_AUTH_NOTE_REFRESH = "mobile-x-refresh"; // Should be an integer to see how often a user refreshed the site
+    public static final String SESSION_AUTH_NOTE_REFRESH = "mobile-x-refresh"; // Should be an integer to see how often
+                                                                               // a user refreshed the site
     public static final String AUTH_NOTE_CODE = "mobile-x-code"; // The sessions name/key to store the mobile
                                                                  // verification code in the auth challenge
     public static final String AUTH_NOTE_TTL = "mobile-x-ttl"; // The sessions name/key to store the mobile verification
@@ -136,6 +165,8 @@ public class Utils {
 
     public static final String FORM_MOBILE_X_CODE = "mobile-x-code";
     public static final String FORM_MOBILE_X_NUMBER = "mobile-x-number";
+
+    public static final String ATTR_X_SLECTED_CHANNEL = "mobile-x-selected-channel";
 
     /**
      * ACTION REQUIRED
@@ -155,12 +186,25 @@ public class Utils {
      * AUTHENTICATOR
      */
     public static final String TEMPLATE_NAME_AUTH = "auth-mobile.ftl";
+    public static final String TEMPLATE_NAME_AUTH_EMAIL = "auth-email.ftl";
+
+    public static final String QUERY_AUTH_NOTIFICATION_SECLETD = "notification";
+
+    public static final String TEMPLATE_AUTH_PAGE_CHANNEL_SELECTED = "mobileAuthChannelSelected";
+    public static final String TEMPLATE_AUTH_PAGE_CHANNELS = "mobileAuthChannels";
 
     public static final String TEMPLATE_AUTH_ERROR_SENT = "mobileAuthErrorSent"; // Error sending sms (amqp message)
 
     public static final String TEMPLATE_AUTH_SEND_TEXT = "mobileAuthSendText";
+    public static final String TEMPLATE_AUTH_EMAIL_SEND_TEXT = "mobileAuthEmailSendText";
+    public static final String TEMPLATE_AUTH_EMAIL_SUBJECT = "mobileAuthEmailSubject";
 
     public static final String TEMPLATE_AUTH_PAGE_REFRESH = "mobileAuthPageRefresh";
+
+    public static final String TEMPLATE_AUTH_PAGE_TRIGGERED_SEND_CONDE = "mobileAuthPageTriggeredSendCode";
+    public static final String TEMPLATE_AUTH_PAGE_SEND_OK = "mobileAuthSentOk";
+
+    public static final String TEMPLATE_AUTH_PAGE_EMAIL_SUBJECT = "mobileAuthEmailSubject";
 
     /**
      * Initialzes a config Map to have a general config with pre-defined config
@@ -173,6 +217,14 @@ public class Utils {
      */
     private static Map<String, String> getConfig(Config.Scope scope) {
         Map<String, String> config = new HashMap<String, String>();
+
+        String config_notification_channels = System
+                .getenv(Utils.CONFIG_SYS_ENV_PREFIX + Utils.CONFIG_NOTIFICATION_CHANNELS);
+        if (config_notification_channels == null) {
+            config_notification_channels = Notification.Type.AMQP.name();
+        }
+        config.put(Utils.CONFIG_NOTIFICATION_CHANNELS,
+                scope.get(Utils.CONFIG_NOTIFICATION_CHANNELS, config_notification_channels));
 
         String config_is_simulation = System.getenv(Utils.CONFIG_SYS_ENV_PREFIX + Utils.CONFIG_IS_SIMULATION);
         if (config_is_simulation == null) {
@@ -187,6 +239,30 @@ public class Utils {
         }
         config.put(Utils.CONFIG_NOTIFICATION_SHOULD_SEND_ON_STARTUP,
                 scope.get(Utils.CONFIG_NOTIFICATION_SHOULD_SEND_ON_STARTUP, config_send_on_startup));
+
+        String config_amqp_client_events = System
+                .getenv(Utils.CONFIG_SYS_ENV_PREFIX + Utils.CONFIG_AMQP_CLIENTID_EVENTS);
+        if (config_amqp_client_events == null) {
+            config_amqp_client_events = Utils.CONFIG_DEFAULT_AMQP_CLIENTID_EVENTS;
+        }
+        config.put(Utils.CONFIG_AMQP_CLIENTID_EVENTS,
+                scope.get(Utils.CONFIG_AMQP_CLIENTID_EVENTS, config_amqp_client_events));
+
+        String config_amqp_client_auth = System
+                .getenv(Utils.CONFIG_SYS_ENV_PREFIX + Utils.CONFIG_AMQP_CLIENTID_AUTHENTICATION);
+        if (config_amqp_client_auth == null) {
+            config_amqp_client_auth = Utils.CONFIG_DEFAULT_AMQP_CLIENTID_AUTHENTICATION;
+        }
+        config.put(Utils.CONFIG_AMQP_CLIENTID_AUTHENTICATION,
+                scope.get(Utils.CONFIG_AMQP_CLIENTID_AUTHENTICATION, config_amqp_client_auth));
+
+        String config_amqp_client_action = System
+                .getenv(Utils.CONFIG_SYS_ENV_PREFIX + Utils.CONFIG_AMQP_CLIENTID_REQUIREDACTION);
+        if (config_amqp_client_action == null) {
+            config_amqp_client_action = Utils.CONFIG_DEFAULT_AMQP_CLIENTID_AUTHENTICATION;
+        }
+        config.put(Utils.CONFIG_AMQP_CLIENTID_REQUIREDACTION,
+                scope.get(Utils.CONFIG_AMQP_CLIENTID_REQUIREDACTION, config_amqp_client_action));
 
         String config_amqp_host = System.getenv(Utils.CONFIG_SYS_ENV_PREFIX + Utils.CONFIG_AMQP_HOST);
         if (config_amqp_host == null) {
@@ -259,7 +335,7 @@ public class Utils {
         }
         config.put(Utils.CONFIG_SHOULD_SKIP, scope.get(Utils.CONFIG_SHOULD_SKIP, config_should_skip));
 
-        LOG.debug("Utils config:");
+        LOG.info("Utils config:");
         for (Map.Entry<String, String> entry : config.entrySet()) {
             String key = entry.getKey();
             String value = entry.getValue();
@@ -303,7 +379,7 @@ public class Utils {
      * @param user
      */
     public void resetUser(UserModel user) {
-        LOG.info("=== resetUser ===");
+        LOG.info("resetUser");
         user.removeAttribute(Utils.ATTR_X_NUMBER);
         user.removeAttribute(Utils.ATTR_X_CODE);
         user.removeAttribute(Utils.ATTR_X_CODE_TIMESTAMP);

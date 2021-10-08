@@ -1,30 +1,25 @@
 package com.mbecker;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+
+import javax.ws.rs.core.MultivaluedMap;
+
+import com.mbecker.gateway.GatewayService;
+import com.mbecker.gateway.GatewayServiceFactory;
+import com.mbecker.gateway.Notification;
+import com.mbecker.gateway.Notification.Type;
+
 import org.jboss.logging.Logger;
 import org.keycloak.authentication.AuthenticationFlowContext;
-import org.keycloak.authentication.AuthenticationFlowError;
 import org.keycloak.authentication.Authenticator;
-import org.keycloak.common.util.RandomString;
+import org.keycloak.forms.login.LoginFormsProvider;
 import org.keycloak.models.AuthenticationExecutionModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
-import org.keycloak.sessions.AuthenticationSessionModel;
-import org.keycloak.theme.Theme;
-
-import jdk.internal.org.jline.utils.Log;
-
-import org.keycloak.common.util.Time;
-
-import javax.ws.rs.core.MultivaluedMap;
-import javax.ws.rs.core.Response;
-
-import com.mbecker.gateway.GatewayServiceFactory;
-import com.mbecker.gateway.Notification;
-
-import java.util.Locale;
-
 import org.keycloak.models.utils.FormMessage;
+import org.keycloak.sessions.AuthenticationSessionModel;
 
 /**
  * @author Mats Becker, mats.becker@gmail.com
@@ -37,24 +32,46 @@ public class AuthenticationMobile implements Authenticator {
 
     private Utils utils;
 
+    private ArrayList<FormMessage> errors;
+    private ArrayList<FormMessage> success;
+
+    private String selectedNotificationChannel;
+    private String[] notificationChannels;
+
     public AuthenticationMobile(Utils utils) {
         this.utils = utils;
+        this.notificationChannels = utils.getNotificationChannels();
+        this.selectedNotificationChannel = notificationChannels[0];
+        this.errors = new ArrayList<FormMessage>();
+        this.success = new ArrayList<FormMessage>();
     }
 
     @Override
     public void authenticate(AuthenticationFlowContext context) {
 
-        LOG.infof("authenticate");
+        LOG.info("=== authenticate ===");
 
         KeycloakSession session = context.getSession();
         UserModel user = context.getUser();
         String mobileXVerified = user.getFirstAttribute(Utils.ATTR_X_VERIFIED);
         Boolean isMobileXVerified = Boolean.parseBoolean(mobileXVerified);
 
-        int pageRefresh = context.getSession().getAttributeOrDefault(Utils.SESSION_AUTH_NOTE_REFRESH, 0);
-        LOG.infof("Page refresh: " + pageRefresh);
-        
-        LOG.infof("User existing attributes: " + user.getAttributes());
+        int pageRefresh = Helper.parseInteger(context.getAuthenticationSession().getAuthNote(Utils.SESSION_AUTH_NOTE_REFRESH), 0);
+        LOG.infof("::::::::::: Authenticate (1): Page Refresh - %d", pageRefresh);
+
+        LOG.info("User existing attributes: " + user.getAttributes());
+
+        // Get the user selected notification channel
+        // Check if the user's attribute selected channel is in the list of configured
+        // channels (via scope/sys config)
+        // The default one is the first channel in the scope/sys config
+        String selectedChannelFormUserAttributes = user.getFirstAttribute(Utils.ATTR_X_SLECTED_CHANNEL);
+        if (selectedChannelFormUserAttributes != null) {
+            if (Arrays.stream(this.notificationChannels).anyMatch(selectedChannelFormUserAttributes::equals)) {
+                this.selectedNotificationChannel = selectedChannelFormUserAttributes;
+            }
+        }
+        user.setSingleAttribute(Utils.ATTR_X_SLECTED_CHANNEL, this.selectedNotificationChannel);
 
         // (1) Mobile nuber attributes: The mobile number is not yet verified (maybe
         // does net yet exists)
@@ -63,7 +80,7 @@ public class AuthenticationMobile implements Authenticator {
         // --> Succeed the context that the next required action can be shown
         String mobileNumber = user.getFirstAttribute(Utils.ATTR_X_NUMBER);
         if (mobileNumber == null || isMobileXVerified == false) {
-            LOG.debug("Mobile number is not verfied or mobile number does not exist");
+            LOG.info("Mobile number is not verfied or mobile number does not exist");
             user.addRequiredAction(RequiredActionMobile.PROVIDER_ID);
             this.utils.resetUser(user);
             context.success();
@@ -74,64 +91,99 @@ public class AuthenticationMobile implements Authenticator {
         // --> Add required action to add mobile number and to verify mobile number
         // --> Reset user's attribute
         // --> Succeed the context that the next required action can be shown
-        // TODO: Really necessay to valiet mobile users again? Should already be verified in the registration/required context
+        // TODO: Really necessary to valiet mobile users again? Should already be
+        // verified in the registration/required context
         if (this.utils.mobileNumberIsValid(mobileNumber) == false) {
-            LOG.debug("Mobile number is not valid");
+            LOG.info("Mobile number is not valid");
             user.addRequiredAction(RequiredActionMobile.PROVIDER_ID);
             this.utils.resetUser(user);
             context.success();
             return;
         }
 
-        if(this.utils.getNotificationShouldSendOnStartp() == false && pageRefresh == 0){
-            LOG.debug("Send not the notification startup; await manually retrigger");
-            Response challenge = context.form()
-                    .addError(new FormMessage(Utils.TEMPLATE_AUTH_PAGE_REFRESH, Utils.TEMPLATE_AUTH_PAGE_REFRESH))
-                    .createForm(Utils.TEMPLATE_NAME_AUTH);
-            context.challenge(challenge);
-            return;
+        if (this.utils.getNotificationShouldSendOnStartp() == false && pageRefresh == 0) {
+            LOG.info("Send not the notification startup; await manually retrigger");
+            this.errors.add(new FormMessage(Utils.TEMPLATE_AUTH_PAGE_REFRESH, Utils.TEMPLATE_AUTH_PAGE_REFRESH));
         }
 
         // (3) SUCCESS
         // --> SEND NOTIFICATION
-        Integer createdAt = Time.currentTime();
-        String uuid = context.getUser().getId();
-        String realm = context.getRealm().getId();
+        if (this.errors.size() == 0) {
 
-        String mobileCode = RandomString.randomCode(this.utils.getNotificationCodeLength());
-        AuthenticationSessionModel authSession = context.getAuthenticationSession();
-        authSession.setAuthNote(Utils.AUTH_NOTE_CODE, mobileCode);
-        authSession.setAuthNote(Utils.AUTH_NOTE_TTL, Long.toString(System.currentTimeMillis() + (this.utils.getNotificationTTL() * 1000L)));
+            // (3).(1) Identify  which notifcation type the use has selected (and which is configured via scope/env config)
+            Type notificationType = Type.AMQP;
+            if (this.selectedNotificationChannel.equals(Notification.Type.EMAIL.name())) {
+                notificationType = Type.EMAIL;
+            }
 
-        // Get the theme's message strings locale
-        String smsText = "";
-        try {
-            Theme theme = session.theme().getTheme(Theme.Type.LOGIN);
-            Locale locale = session.getContext().resolveLocale(user);
-            String smsAuthText = theme.getMessages(locale).getProperty(Utils.TEMPLATE_AUTH_SEND_TEXT);
-            smsText = String.format(smsAuthText, mobileCode, Math.floorDiv(this.utils.getNotificationTTL(), 60));
-        } catch (Exception e) {
-            // Error getting theme's message strings locale and to crate a localized string
-            // Fallback sms text
-            smsText = "Code: " + mobileCode;
+            // (3).(2) Create the notification
+            Notification notification = new Notification(context.getSession(), user, context.getRealm(), this.utils,
+                    Notification.Action.AUTHENTICATION, notificationType, mobileNumber);
+
+            // (3).(3) Initialize the gateway service
+            // TODO: Really necessay to initialize with session and notification (session used for email; notificato to get the tyoe of gateway like AMQP or email)
+            
+            try {
+                if (notificationType == Type.AMQP) {
+                    GatewayService gatewayService = GatewayServiceFactory.get(this.utils);
+                    gatewayService.send(notification, this.utils.getAMQPQueue());
+                    this.success
+                            .add(new FormMessage(Utils.TEMPLATE_AUTH_PAGE_SEND_OK, Utils.TEMPLATE_AUTH_PAGE_SEND_OK));
+                } else {
+                    GatewayService gatewayService = GatewayServiceFactory.get(this.utils, session, notification);
+                    gatewayService.sendMail(session.getContext().getRealm().getSmtpConfig(), context.getUser(),
+                            notification.getEmail());
+                    this.success
+                            .add(new FormMessage(Utils.TEMPLATE_AUTH_PAGE_SEND_OK, Utils.TEMPLATE_AUTH_PAGE_SEND_OK));
+                }
+                // Store the code and ttl in the user's auth not session to equal it later
+                AuthenticationSessionModel authSession = context.getAuthenticationSession();
+                authSession.setAuthNote(Utils.AUTH_NOTE_CODE, notification.getCode());
+                authSession.setAuthNote(Utils.AUTH_NOTE_TTL,
+                        Long.toString(System.currentTimeMillis() + (notification.getTtl() * 1000L)));
+
+            } catch (Exception ex) {
+                LOG.error(ex);
+                // BUG: Keyclok Tempale does show eitehr success or error messages; not bot at
+                // once
+                // The success of "Trigger" is added but the email isn't sent
+                this.success.clear();
+                this.errors.add(new FormMessage(Utils.TEMPLATE_AUTH_ERROR_SENT, Utils.TEMPLATE_AUTH_ERROR_SENT));
+            }
+
         }
 
-        Notification notification = new Notification(Notification.Action.AUTHENTICATION, Notification.Type.SMS,
-                mobileNumber, smsText, mobileCode, this.utils.getNotificationTTL(), createdAt, uuid, realm);
+        LoginFormsProvider form = context.form();
+        form.setAttribute("realm", context.getRealm());
+        form.setAttribute(Utils.TEMPLATE_AUTH_PAGE_CHANNEL_SELECTED, this.selectedNotificationChannel);
+        form.setAttribute(Utils.TEMPLATE_AUTH_PAGE_CHANNELS, notificationChannels);
 
-        GatewayServiceFactory.get(this.utils).send(notification, this.utils.getAMQPQueue());
+        for (int i = 0; i < this.errors.size(); i++) {
+            form.addError(this.errors.get(i));
+        }
+        for (int i = 0; i < this.success.size(); i++) {
+            form.addSuccess(this.success.get(i));
+        }
 
-        context.challenge(
-                context.form().setAttribute("realm", context.getRealm()).createForm(Utils.TEMPLATE_NAME_AUTH));
+        this.errors.clear();
+        this.success.clear();
+
+        context.challenge(form.createForm(Utils.TEMPLATE_NAME_AUTH));
     }
 
     @Override
     public void action(AuthenticationFlowContext context) {
 
-        LOG.debug("=== action ===");
+        LOG.info("=== action ===");
 
         MultivaluedMap<String, String> formData = context.getHttpRequest().getDecodedFormParameters();
-        
+
+        String formSelectedChannel = formData.getFirst("notification");
+        if (formSelectedChannel != null) {
+            context.getUser().setSingleAttribute(Utils.ATTR_X_SLECTED_CHANNEL, formSelectedChannel);
+            this.selectedNotificationChannel = formSelectedChannel;
+        }
+
         UserModel user = context.getUser();
 
         // (1) Retry: The user submits a retry
@@ -139,19 +191,27 @@ public class AuthenticationMobile implements Authenticator {
         // --> Restart flow
         String tryAgain = formData.getFirst("reset");
         if (tryAgain != null && tryAgain.length() > 0) {
-            context.getSession().setAttribute(Utils.SESSION_AUTH_NOTE_REFRESH, 1);
+            int pageRefresh = context.getSession().getAttributeOrDefault(Utils.SESSION_AUTH_NOTE_REFRESH, 0);
+            LOG.infof("::::::::::: Action (2): Page Refresh - %d", pageRefresh);
+            context.getAuthenticationSession().setAuthNote(Utils.SESSION_AUTH_NOTE_REFRESH, String.format("%d", pageRefresh + 1));
             context.getUser().removeAttribute(Utils.ATTR_X_CODE);
             context.getUser().removeAttribute(Utils.ATTR_X_CODE_TIMESTAMP);
+            this.success.add(new FormMessage(Utils.TEMPLATE_AUTH_PAGE_TRIGGERED_SEND_CONDE,
+                    Utils.TEMPLATE_AUTH_PAGE_TRIGGERED_SEND_CONDE));
             this.authenticate(context);
             return;
         }
 
-        // (1 Additional) The user clicked "skip=[XXXX]"; skip the required action and continue with
+        // (1 Additional) The user clicked "skip=[XXXX]"; skip the required action and
+        // continue with
         // the flow
-        // The user has an attribue "mobile-x-skip-allowed" (overwrites global env) or the env CONFIG_SHOULD_SKIP (do not forget the prefix) is set to true
+        // The user has an attribue "mobile-x-skip-allowed" (overwrites global env) or
+        // the env CONFIG_SHOULD_SKIP (do not forget the prefix) is set to true
         String skipForm = formData.getFirst("skip");
-        if ((this.utils.getNotificationShouldSkip() == true || Boolean.parseBoolean(user.getFirstAttribute(Utils.ATTR_X_SKIP_ALLOWED)) == true) && skipForm != null
+        if ((this.utils.getNotificationShouldSkip() == true
+                || Boolean.parseBoolean(user.getFirstAttribute(Utils.ATTR_X_SKIP_ALLOWED)) == true) && skipForm != null
                 && skipForm.length() > 0) {
+            user.removeAttribute(Utils.SESSION_AUTH_NOTE_REFRESH);
             context.success();
             return;
         }
@@ -165,11 +225,9 @@ public class AuthenticationMobile implements Authenticator {
         // session ttl exist
         // --> Responds with a response with an error
         if (code == null || ttl == null) {
-            // TODO: better error response thate "code" and "ttl" in sessions not yet set
-            Response challenge = context.form()
-                    .addError(new FormMessage(Utils.TEMPLATE_AUTH_ERROR_SENT, Utils.TEMPLATE_AUTH_ERROR_SENT))
-                    .createForm(Utils.TEMPLATE_NAME_AUTH);
-            context.challenge(challenge);
+            // TODO: better error response that "code" and "ttl" in sessions not yet set
+            this.errors.add(new FormMessage(Utils.TEMPLATE_AUTH_ERROR_SENT, Utils.TEMPLATE_AUTH_ERROR_SENT));
+            this.authenticate(context);
             return;
         }
 
@@ -186,15 +244,14 @@ public class AuthenticationMobile implements Authenticator {
                 // --> Remove the attributes for the existing code and the timestamp
                 context.getUser().removeAttribute(Utils.ATTR_X_CODE);
                 context.getUser().removeAttribute(Utils.ATTR_X_CODE_TIMESTAMP);
-                Response challenge = context.form()
-                        .addError(new FormMessage(Utils.TEMPLATE_ACTION_ERROR_TTL, Utils.TEMPLATE_ACTION_ERROR_TTL))
-                        .createForm(Utils.TEMPLATE_NAME_AUTH);
-                context.challenge(challenge);
+                this.errors.add(new FormMessage(Utils.TEMPLATE_ACTION_ERROR_TTL, Utils.TEMPLATE_ACTION_ERROR_TTL));
+                this.authenticate(context);
                 return;
             } else {
                 // (3) Enterd code from html form and session verification code are equal: true
                 // (3).(1) TTL of verification code valid: valid
                 // --> Success
+                user.removeAttribute(Utils.SESSION_AUTH_NOTE_REFRESH);
                 context.success();
             }
         } else {
@@ -202,11 +259,10 @@ public class AuthenticationMobile implements Authenticator {
             // (3).(2) Check if the flow execution is required
             AuthenticationExecutionModel execution = context.getExecution();
             if (execution.isRequired()) {
-                context.failureChallenge(AuthenticationFlowError.INVALID_CREDENTIALS,
-                        context.form().setAttribute("realm", context.getRealm())
-                                .addError(new FormMessage(Utils.TEMPLATE_ACTION_ERROR_CODE_WRONG,
-                                        Utils.TEMPLATE_ACTION_ERROR_CODE_WRONG))
-                                .createForm(Utils.TEMPLATE_NAME_AUTH));
+                this.errors.add(new FormMessage(Utils.TEMPLATE_ACTION_ERROR_CODE_WRONG,
+                        Utils.TEMPLATE_ACTION_ERROR_CODE_WRONG));
+                this.authenticate(context);
+                return;
             } else if (execution.isConditional() || execution.isAlternative()) {
                 context.attempted();
             }
@@ -215,20 +271,20 @@ public class AuthenticationMobile implements Authenticator {
 
     @Override
     public boolean requiresUser() {
-        LOG.debug("=== requiresUser ===");
+        LOG.info("=== requiresUser ===");
         return true;
     }
 
     // TODO: Is this authenticator configured for this user - Seems to group user
     @Override
     public boolean configuredFor(KeycloakSession session, RealmModel realm, UserModel user) {
-        LOG.debug("=== configuredFor ===");
+        LOG.info("=== configuredFor ===");
         if (user.getFirstAttribute(Utils.ATTR_X_VERIFIED) == null) {
-            LOG.debug("No attribute verified: " + Utils.ATTR_X_VERIFIED);
+            LOG.info("No attribute verified: " + Utils.ATTR_X_VERIFIED);
             return true;
         }
         if (user.getFirstAttribute(Utils.ATTR_X_NUMBER) == null) {
-            LOG.debug("No attribute verified: " + Utils.ATTR_X_NUMBER);
+            LOG.info("No attribute verified: " + Utils.ATTR_X_NUMBER);
             return true;
         }
         return true;
@@ -236,12 +292,12 @@ public class AuthenticationMobile implements Authenticator {
 
     @Override
     public void setRequiredActions(KeycloakSession session, RealmModel realm, UserModel user) {
-        LOG.debug("=== setRequiredActions ===");
+        LOG.info("=== setRequiredActions ===");
     }
 
     @Override
     public void close() {
-        LOG.debug("=== close ===");
+        LOG.info("=== close ===");
     }
 
 }

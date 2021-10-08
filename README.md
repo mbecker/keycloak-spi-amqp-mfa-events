@@ -1,5 +1,7 @@
 # keycloak-spi-amqp-mfa-events
 
+The codebase is provided as-is and might not be free of errors. So, you're on your own when using it. Generally, this project is work in progress.
+
 # Deployment
 
 ## Configuration

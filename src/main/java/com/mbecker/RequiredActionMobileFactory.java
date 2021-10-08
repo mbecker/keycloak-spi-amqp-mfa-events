@@ -25,7 +25,7 @@ public class RequiredActionMobileFactory implements RequiredActionFactory {
 
     @Override
     public RequiredActionProvider create(KeycloakSession session) {
-        LOG.debug("Create");
+        LOG.info("Create");
         if (instance == null) {
 			return new RequiredActionMobile(this.utils);
 		}
@@ -39,7 +39,7 @@ public class RequiredActionMobileFactory implements RequiredActionFactory {
 
     @Override
     public void init(Scope config) {
-        LOG.debug("Initializing");
+        LOG.info("Initializing");
         this.utils = new Utils(config);
     }
 
