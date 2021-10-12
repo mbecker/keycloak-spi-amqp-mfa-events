@@ -51,7 +51,7 @@ public class AMQPService implements GatewayService {
     public void send(Notification notification, String routingKey) throws IOException {
         String json = this.gson.toJson(notification);
         this.channel.basicPublish("", routingKey, null, json.getBytes(StandardCharsets.UTF_8));
-        LOG.info("Sent AMQP Message: '" + json + "'");
+        LOG.info("Sent AMQP Message to channel: " + routingKey + " '" + json + "'");
     }
 
     @Override

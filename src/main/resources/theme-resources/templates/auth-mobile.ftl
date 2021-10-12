@@ -4,6 +4,11 @@
 		${msg("mobileAuthTitle",realm.displayName)}
 	<#elseif section = "form">
 		<form id="kc-sms-mobile-x-code-login-form" class="${properties.kcFormClass!}" action="${url.loginAction}" method="post">
+			<#if mobileXQr?? >
+			<div class="${properties.kcFormGroupClass!}">
+				<img src="data:image/png;base64,${mobileXQr}" width=="200" height="200" />
+			</div>
+			</#if>
 			<div class="${properties.kcFormGroupClass!}">
 				<div class="${properties.kcLabelWrapperClass!}">
 					<label for="mobile-x-code" class="${properties.kcLabelClass!}">${msg("mobileActionLabel")}</label>

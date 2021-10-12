@@ -1,10 +1,18 @@
 package com.mbecker;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Base64;
 
 import javax.ws.rs.core.MultivaluedMap;
 
+import com.google.zxing.BarcodeFormat;
+import com.google.zxing.MultiFormatWriter;
+import com.google.zxing.WriterException;
+import com.google.zxing.client.j2se.MatrixToImageWriter;
+import com.google.zxing.common.BitMatrix;
 import com.mbecker.gateway.GatewayService;
 import com.mbecker.gateway.GatewayServiceFactory;
 import com.mbecker.gateway.Notification;
@@ -155,6 +163,18 @@ public class AuthenticationMobile implements Authenticator {
 
         LoginFormsProvider form = context.form();
         form.setAttribute("realm", context.getRealm());
+        String image;
+        try {
+            image = generateQrCode("www.google.com");
+            form.setAttribute("mobileXQr", image);
+        } catch (WriterException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        } catch (IOException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+        
         form.setAttribute(Utils.TEMPLATE_AUTH_PAGE_CHANNEL_SELECTED, this.selectedNotificationChannel);
         form.setAttribute(Utils.TEMPLATE_AUTH_PAGE_CHANNELS, notificationChannels);
 
@@ -298,6 +318,20 @@ public class AuthenticationMobile implements Authenticator {
     @Override
     public void close() {
         LOG.info("=== close ===");
+    }
+
+    private String generateQrCode(String url) throws WriterException, IOException {
+        
+
+        int imageSize = 200;
+        BitMatrix matrix = new MultiFormatWriter().encode(url, BarcodeFormat.QR_CODE,
+            imageSize, imageSize);
+        ByteArrayOutputStream bos = new ByteArrayOutputStream();
+        MatrixToImageWriter.writeToStream(matrix, "png", bos);
+        
+        return Base64.getEncoder().encodeToString(bos.toByteArray()); // base64 encode
+
+
     }
 
 }
