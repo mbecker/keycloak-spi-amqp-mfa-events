@@ -9,14 +9,15 @@
 # build all dependencies for offline use
 
 # build
-FROM maven
-WORKDIR /usr/src/app
-COPY pom.xml .
-RUN mvn dependency:go-offline -B
-COPY . .
-RUN mvn package
+# FROM maven
+# WORKDIR /usr/src/app
+# COPY pom.xml .
+# RUN mvn dependency:go-offline -B
+# COPY . .
+# RUN mvn package
 
 # package without maven
 FROM alpine:3.9
 RUN mkdir -p /deployments
-COPY --from=0 /usr/src/app/target/*.jar ./deployments
+# COPY --from=0 /usr/src/app/target/*.jar ./deployments
+COPY ./ear-module/target/com.mbecker-keycloak-spi-amqp-mfa-events-bundle-0.1-SNAPSHOT.ear ./deployments/com.mbecker-keycloak-spi-amqp-mfa-events-bundle-0.1-SNAPSHOT.ear

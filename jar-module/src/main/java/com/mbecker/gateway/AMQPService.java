@@ -40,7 +40,7 @@ public class AMQPService implements GatewayService {
             connection = factory.newConnection();
             this.channel = connection.createChannel();
             channel.queueDeclare(utils.getAMQPQueue(), false, false, false, null);
-            LOG.info("AMQP Channel declard");
+            LOG.info("AMQP Channel declard: " + utils.getAMQPQueue());
         } catch (IOException | TimeoutException e) {
             LOG.error("Error AMQP connection / channel declaration", e);
         }
@@ -51,17 +51,19 @@ public class AMQPService implements GatewayService {
     public void send(Notification notification, String routingKey) throws IOException {
         String json = this.gson.toJson(notification);
         this.channel.basicPublish("", routingKey, null, json.getBytes(StandardCharsets.UTF_8));
-        LOG.info("Sent AMQP Message: '" + json + "'");
+        LOG.info("Sent AMQP Message to channel: " + routingKey + " '" + json + "'");
     }
 
     @Override
     public void send(String notification, String routingKey) throws IOException {
         this.channel.basicPublish("", routingKey, null, notification.getBytes(StandardCharsets.UTF_8));
+        LOG.info("Sent AMQP Message to channel: " + routingKey + " '" + notification + "'");
     }
 
     public void send(Object obj, String routingKey) throws IOException {
         String json = this.gson.toJson(obj);
         this.send(json, routingKey);
+        LOG.info("Sent AMQP Message to channel: " + routingKey + " '" + json + "'");
     }
 
     @Override

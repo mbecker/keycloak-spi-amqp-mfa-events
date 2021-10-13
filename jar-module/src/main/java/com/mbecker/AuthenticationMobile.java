@@ -110,37 +110,41 @@ public class AuthenticationMobile implements Authenticator {
         // --> SEND NOTIFICATION
         if (this.errors.size() == 0) {
 
+            LOG.info("No errors; create and send notification (1)");
+
             // (3).(1) Identify  which notifcation type the use has selected (and which is configured via scope/env config)
             Type notificationType = Type.AMQP;
             if (this.selectedNotificationChannel.equals(Notification.Type.EMAIL.name())) {
                 notificationType = Type.EMAIL;
             }
 
-            // (3).(2) Create the notification
-            Notification notification = new Notification(context.getSession(), user, context.getRealm(), this.utils,
-                    Notification.Action.AUTHENTICATION, notificationType, mobileNumber);
+            LOG.info("No errors; create and send notification (2)");
 
+            // (3).(2) Create the notification
+            Notification n = new Notification(context.getSession(), user, context.getRealm(), this.utils, Notification.Action.AUTHENTICATION, notificationType, mobileNumber);
+            
             // (3).(3) Initialize the gateway service
             // TODO: Really necessay to initialize with session and notification (session used for email; notificato to get the tyoe of gateway like AMQP or email)
             
+            LOG.info("No errors; create and send notification (3)");
             try {
                 if (notificationType == Type.AMQP) {
                     GatewayService gatewayService = GatewayServiceFactory.get(this.utils);
-                    gatewayService.send(notification, this.utils.getAMQPQueue());
+                    gatewayService.send(n, this.utils.getAMQPQueue());
                     this.success
                             .add(new FormMessage(Utils.TEMPLATE_AUTH_PAGE_SEND_OK, Utils.TEMPLATE_AUTH_PAGE_SEND_OK));
                 } else {
-                    GatewayService gatewayService = GatewayServiceFactory.get(this.utils, session, notification);
+                    GatewayService gatewayService = GatewayServiceFactory.get(this.utils, session, n);
                     gatewayService.sendMail(session.getContext().getRealm().getSmtpConfig(), context.getUser(),
-                            notification.getEmail());
+                            n.getEmail());
                     this.success
                             .add(new FormMessage(Utils.TEMPLATE_AUTH_PAGE_SEND_OK, Utils.TEMPLATE_AUTH_PAGE_SEND_OK));
                 }
                 // Store the code and ttl in the user's auth not session to equal it later
                 AuthenticationSessionModel authSession = context.getAuthenticationSession();
-                authSession.setAuthNote(Utils.AUTH_NOTE_CODE, notification.getCode());
+                authSession.setAuthNote(Utils.AUTH_NOTE_CODE, n.getCode());
                 authSession.setAuthNote(Utils.AUTH_NOTE_TTL,
-                        Long.toString(System.currentTimeMillis() + (notification.getTtl() * 1000L)));
+                        Long.toString(System.currentTimeMillis() + (n.getTtl() * 1000L)));
 
             } catch (Exception ex) {
                 LOG.error(ex);

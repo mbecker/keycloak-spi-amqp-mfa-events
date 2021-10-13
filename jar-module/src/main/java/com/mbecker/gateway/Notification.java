@@ -37,6 +37,7 @@ public class Notification {
     }
 
     public Notification(KeycloakSession session, UserModel user, RealmModel realm, Utils utils, Action action, Type type, String receiver) {
+        LOG.info("Initialize NOtification (1) for type: " + type.name());
         this.session = session;
         this.user = user;
         this.uuid = user.getId();
@@ -48,11 +49,14 @@ public class Notification {
         this.code = RandomString.randomCode(utils.getNotificationCodeLength());;
         this.ttl = utils.getNotificationTTL();
         this.createdAt = Time.currentTime();
+        LOG.info("Initialize NOtification (2) for type: " + type.name());
         switch (type)  {
             case AMQP:
+                LOG.info("Initialize NOtification (3) set amqp text");
                 this.setAMQPText();
                 break;
             case EMAIL:
+                LOG.info("Initialize NOtification (3) set email text");
                 this.setEmail();
                 break;
             default:
@@ -61,6 +65,7 @@ public class Notification {
     }
 
     public void setAMQPText() {
+        LOG.info("Set AMQP (1)");
         // Get the theme's message strings locale
         String smsText = "Code: " + this.code;
         String messageProperty = Utils.TEMPLATE_AUTH_SEND_TEXT;
@@ -68,17 +73,20 @@ public class Notification {
             messageProperty = Utils.TEMPLATE_ACTION_SEND_TEXT;
         }
         try {
+            LOG.info("Set AMQP (2)");
             Theme theme = this.session.theme().getTheme(Theme.Type.LOGIN);
             Locale locale = session.getContext().resolveLocale(this.user);
             String smsAuthText = theme.getMessages(locale).getProperty(messageProperty);
             smsText = String.format(smsAuthText, this.code, Math.floorDiv(this.ttl, 60));
         } catch (Exception e) {
+            LOG.info("Set AMQP error");
             LOG.error(e);
         }
         this.message = smsText;
     }
 
     public void setEmail() {
+        LOG.info("Set email (1)");
         Map<String, Object> attributes = new HashMap<String, Object>();
         attributes.put("code", this.code);
         attributes.put("ttl", Math.floorDiv(this.ttl, 60));
@@ -86,8 +94,12 @@ public class Notification {
         List<Object> subjectAttributes = new ArrayList<Object>();
 
         try {
+            LOG.info("Set email (2)");
             this.email = this.processTemplate(Utils.TEMPLATE_AUTH_PAGE_EMAIL_SUBJECT, subjectAttributes, Utils.TEMPLATE_NAME_AUTH_EMAIL, attributes);
         } catch (EmailException e) {
+            LOG.info("Set email error");
+            LOG.error("????");
+            e.printStackTrace();
             LOG.error(e);
         }
         

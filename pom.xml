@@ -1,9 +1,18 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0"
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
+  
   <groupId>com.mbecker</groupId>
   <artifactId>keycloak-spi-amqp-mfa-events</artifactId>
   <version>0.1-SNAPSHOT</version>
+  
+  <packaging>pom</packaging>
+
+  <modules>
+    <module>ear-module</module>
+    <module>jar-module</module>
+  </modules>
+
   <properties>
     <maven.compiler.source>1.8</maven.compiler.source>
     <maven.compiler.target>1.8</maven.compiler.target>
@@ -25,7 +34,10 @@
     <!-- KEYCLOAK -->
     <keycloak.version>15.0.2</keycloak.version>
     <maven-shade.version>3.2.4</maven-shade.version>
+
+    <jboss-logging.version>3.4.2.Final</jboss-logging.version>
   </properties>
+
   <dependencies>
     <dependency>
       <groupId>com.google.code.gson</groupId>
@@ -40,44 +52,42 @@
       <version>5.13.1</version>
     </dependency>
 
-    <!-- KEYCLOAK -->
-    <dependency>
-      <groupId>org.keycloak</groupId>
-      <artifactId>keycloak-server-spi</artifactId>
-      <version>${keycloak.version}</version>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.keycloak</groupId>
-      <artifactId>keycloak-server-spi-private</artifactId>
-      <version>${keycloak.version}</version>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.keycloak</groupId>
-      <artifactId>keycloak-services</artifactId>
-      <version>${keycloak.version}</version>
-      <scope>provided</scope>
-    </dependency>
 
-    <dependency>
-      <groupId>org.junit.jupiter</groupId>
-      <artifactId>junit-jupiter-api</artifactId>
-      <version>${junit.version}</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.junit.jupiter</groupId>
-      <artifactId>junit-jupiter-engine</artifactId>
-      <version>${junit.version}</version>
-      <scope>test</scope>
-    </dependency>
   </dependencies>
 
   <build>
     <finalName>${project.groupId}-${project.artifactId}-${project.version}</finalName>
     <plugins>
       <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-ear-plugin</artifactId>
+        <version>3.0.2</version>
+        <configuration>
+          <version>7</version>
+        </configuration>
+      </plugin>
+
+      <plugin>
+        <groupId>org.wildfly.plugins</groupId>
+        <artifactId>wildfly-maven-plugin</artifactId>
+        <version>1.2.0.Final</version>
+        <configuration>
+          <skip>true</skip>
+        </configuration>
+      </plugin>
+      <!-- See: https://stackoverflow.com/questions/57778240/noclassdeffounderror-in-a-provider-jar-when-using-a-class-from-org-keycloak-auth -->
+      <!-- <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <configuration>
+          <archive>
+            <manifestEntries>
+              <Dependencies>org.keycloak.keycloak-services</Dependencies>
+            </manifestEntries>
+          </archive>
+        </configuration>
+      </plugin> -->
+      <!-- <plugin>
         <groupId>de.qaware.maven</groupId>
         <artifactId>go-offline-maven-plugin</artifactId>
         <version>1.2.8</version>
@@ -105,8 +115,8 @@
             </DynamicDependency>
           </dynamicDependencies>
         </configuration>
-      </plugin>
-      <plugin>
+      </plugin> -->
+      <!-- <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-shade-plugin</artifactId>
         <version>${maven-shade.version}</version>
@@ -128,7 +138,7 @@
             </configuration>
           </execution>
         </executions>
-      </plugin>
+      </plugin> -->
     </plugins>
   </build>
 
@@ -259,7 +269,7 @@
   <!-- </plugin>
     </plugins>
   </build> -->
-  <reporting>
+  <!-- <reporting>
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -267,10 +277,10 @@
         <version>${maven-javadoc-plugin.version}</version>
       </plugin>
     </plugins>
-  </reporting>
-  <profiles>
-    <!-- Publish coverage report to Coveralls, only when running in Travis. -->
-    <profile>
+  </reporting> -->
+  <!-- <profiles> -->
+  <!-- Publish coverage report to Coveralls, only when running in Travis. -->
+  <!-- <profile>
       <id>travis</id>
       <activation>
         <property>
@@ -286,6 +296,6 @@
           </plugin>
         </plugins>
       </build>
-    </profile>
-  </profiles>
+    </profile> -->
+  <!-- </profiles> -->
 </project>

@@ -259,7 +259,7 @@ public class Utils {
         String config_amqp_client_action = System
                 .getenv(Utils.CONFIG_SYS_ENV_PREFIX + Utils.CONFIG_AMQP_CLIENTID_REQUIREDACTION);
         if (config_amqp_client_action == null) {
-            config_amqp_client_action = Utils.CONFIG_DEFAULT_AMQP_CLIENTID_AUTHENTICATION;
+            config_amqp_client_action = Utils.CONFIG_AMQP_CLIENTID_REQUIREDACTION;
         }
         config.put(Utils.CONFIG_AMQP_CLIENTID_REQUIREDACTION,
                 scope.get(Utils.CONFIG_AMQP_CLIENTID_REQUIREDACTION, config_amqp_client_action));
@@ -281,7 +281,7 @@ public class Utils {
             config_amqp_queue = Utils.CONFIG_DEFAULT_AMQP_QUEUE;
         }
         config.put(Utils.CONFIG_AMQP_QUEUE, scope.get(Utils.CONFIG_AMQP_QUEUE, config_amqp_queue));
-
+        
         String config_amqp_queue_events = System.getenv(Utils.CONFIG_SYS_ENV_PREFIX + Utils.CONFIG_AMQP_QUEUE_EVENTS);
         if (config_amqp_queue_events == null) {
             config_amqp_queue_events = Utils.CONFIG_DEFAULT_AMQP_QUEUE_EVENTS;
