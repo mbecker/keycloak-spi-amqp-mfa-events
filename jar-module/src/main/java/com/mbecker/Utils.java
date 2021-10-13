@@ -168,6 +168,9 @@ public class Utils {
 
     public static final String ATTR_X_SLECTED_CHANNEL = "mobile-x-selected-channel";
 
+    // Mobile Tokens
+    public static final String ATTR_X_MOBILE_TOKENS = "mobile-x-tokens"; // Is the user verified
+
     /**
      * ACTION REQUIRED
      */
@@ -181,6 +184,10 @@ public class Utils {
     public static final String TEMPLATE_ACTION_ERROR_INVALID_NUMBER = "mobileActionErrorInvalidNumber";
 
     public static final String TEMPLATE_ACTION_SEND_TEXT = "mobileActionSendText";
+
+
+    public static final String TEMPLATE_ACTION_MOBILE_TOKEN_QR_CODE = "mobileActionQR";
+    public static final String TEMPLATE_NAME_ACTIONREQUIRED_MOBILE_TOKEN = "action-mobile-token.ftl";
 
     /**
      * AUTHENTICATOR

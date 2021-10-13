@@ -21,12 +21,14 @@
 					<#if mobileAuthChannels?? && (mobileAuthChannels?size gt 1) >
 						<div class="${properties.kcFormOptionsWrapperClass!}" style="margin-top: 1em;display: flex;flex-direction: column;">
 							<span class="${properties.kcLabelClass!}" style="font-weight: 600;">${msg("mobileAuthSelectChannelFor")}${mobileAuthChannelSelected}</span>
-							<span class="${properties.kcLabelClass!}" style="font-weight: 600;">${msg("mobileAuthSelectChannelSwitchTo")}</span>
-							<#list mobileAuthChannels as channel>
-									<#if channel != mobileAuthChannelSelected>
-										<input class="${properties.kcButtonClass!} ${properties.kcButtonPrimaryClass!} ${properties.kcButtonBlockClass!} ${properties.kcButtonLargeClass!}" type="submit" name="notification" value="${channel}" />
-									</#if>
+							<div class="" style="margin-top: 1em; display: flex; flex-direction: row;">
+								<span class="${properties.kcLabelClass!}" style="font-weight: 600; margin-right: 1em;">${msg("mobileAuthSelectChannelSwitchTo")}</span>
+								<#list mobileAuthChannels as channel>
+										<#if channel != mobileAuthChannelSelected>
+											<input class="" style="  border-style: none; background: transparent; width: 4em; color: #0088ce; text-decoration: none; margin: 0em; padding: 0em;" type="submit" name="notification" value="${channel}" />
+										</#if>
 								</#list>
+							</div>
 						</div>
 					</#if>
 				</div>
